@@ -1,0 +1,102 @@
+plugins {
+    id 'application'
+    id 'com.google.protobuf' version '0.8.11'
+    id 'idea'
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.61'
+}
+
+repositories {
+    google()
+    jcenter()
+    mavenCentral()
+    mavenLocal()
+}
+
+group 'kotlin-grpc-test'
+version '0.0.1'
+
+def grpcVersion = '1.27.1'
+def junitVersion = '5.6.0'
+
+dependencies {
+    compile 'com.google.protobuf:protobuf-java:3.11.4'
+
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+
+    def kotlinVersion = plugins.findPlugin('org.jetbrains.kotlin.jvm').kotlinPluginVersion
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}"
+
+    testCompile 'org.mockito:mockito-junit-jupiter:3.3.0'
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+}
+
+sourceSets {
+    main {
+        java {
+            include "${projectDir}/gen"
+        }
+    }
+}
+
+protobuf {
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+
+    generatedFilesBaseDir = "${projectDir}/gen"
+
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.11.4'
+    }
+}
+
+clean {
+    delete protobuf.generatedFilesBaseDir
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+startScripts.enabled = false
+
+task helloServer(type: CreateStartScripts) {
+    mainClassName = 'hello.server.HelloServer'
+    applicationName = 'hello-server'
+    outputDir = new File(project.buildDir, 'tmp')
+    classpath = startScripts.classpath
+}
+
+task helloClient(type: CreateStartScripts) {
+    mainClassName = 'hello.client.HelloClient'
+    applicationName = 'hello-client'
+    outputDir = new File(project.buildDir, 'tmp')
+    classpath = startScripts.classpath
+}
+
+applicationDistribution.into('bin') {
+    from(helloServer)
+    from(helloClient)
+    fileMode = 0755
+}
